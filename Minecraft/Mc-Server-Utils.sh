@@ -1,9 +1,8 @@
 #!/bin/bash
 
 #Todo:
-#1. Add compression + Timestamping of worlds
-#2. Customise server: Server properties, ops, whitelist etc.
-#3. Delete/disable all mods, configs in server. Sync with curseforge. 
+#1. Customise server: Server properties, ops, whitelist etc.
+#2. Delete/disable all mods, configs in server. Sync with curseforge. 
 
 set -euo pipefail
 VERSION="0.1.0"
@@ -15,7 +14,7 @@ SERVER_JAR="forge.jar"
 MAX_RAM="9G"
 MIN_RAM="2G"
 
-#COMPRESS=true 
+COMPRESS=true 
 #Will add compression of mc world to .tar.gz
 #Will add a timestamp feature
 
@@ -53,13 +52,13 @@ Commands:
 
 Backup options:
 
-    -n Disable compression
+    -n No compression
     
     -w Backup the Minecraft world only
     
     -m Backup the Minecraft mods folder only
     
-    -c Backup the Minecraft mods folder only
+    -c Backup the Minecraft config folder only
 
 General options:
 
@@ -126,8 +125,19 @@ Restart_Server(){
         
 }
 
+Compress_Preparation(){
+    
+    WORLD_NAME=$(grep '^level-name' "$MC_PATH/server.properties" | cut -d'=' -f2-)
+    TIMESTAMP=$(date "+%d-%m-%Y_%H-%M")
+    BACKUP_NAME="${WORLD_NAME}, ${TIMESTAMP}.tar.xz"
+    
+    
+}
+
 
 Backup_Server(){
+
+    Compress_Preparation
 
     
 	mkdir -p "$BACKUP_PATH"
@@ -150,28 +160,49 @@ Backup_Server(){
         
         echo "No flags specified"
         echo "Backing up entire server directory at: $MC_PATH"
+
+        if [[ "$COMPRESS" == true ]]; then
+            tar -cJf "$BACKUP_PATH/ALL_${BACKUP_NAME}" "$MC_PATH"
         
-        rsync -avhP "$MC_PATH" "$BACKUP_PATH/"
+        else
+            rsync -avhP "$MC_PATH" "$BACKUP_PATH/"
+        fi
+
 	    echo "Backup Completed"
-        return
-    fi
+    return 0
+    fi  
 
     if [[ "$BACKUP_WORLD" == true ]]; then
         echo "Backing up world"
-        rsync -avhP "$MC_PATH/world" "$BACKUP_PATH/"
-        echo "World backed up successfully"
+
+        if [[ "$COMPRESS" == true ]]; then
+            tar -cJf "$BACKUP_PATH/WORLD_${BACKUP_NAME}" "$MC_PATH/world"
+        else
+            rsync -avhP "$MC_PATH/world" "$BACKUP_PATH/"
+        fi
+    echo "World backed up successfully"
     fi
 
     if [[ "$BACKUP_MODS" == true ]]; then
-    echo "Backing up mods"
-    rsync -avhP "$MC_PATH/mods" "$BACKUP_PATH/"
+        echo "Backing up mods"
+        if [[ "$COMPRESS" == true ]]; then
+            tar -cJf "$BACKUP_PATH/MODS_${BACKUP_NAME}" "$MC_PATH/mods"
+        else
+            rsync -avhP "$MC_PATH/mods" "$BACKUP_PATH/"
+        fi
     echo "Mods backed up successfully"
     fi
 
     if [[ "$BACKUP_CONFIG" == true ]]; then
-    echo "Backing up configs"
-    rsync -avhP "$MC_PATH/config" "$BACKUP_PATH/"
-    
+        echo "Backing up configs"
+        if [[ "$COMPRESS" == true ]]; then
+            tar -cJf "$BACKUP_PATH/CONFIG_${BACKUP_NAME}" "$MC_PATH/config"
+
+        else
+           rsync -avhP "$MC_PATH/config" "$BACKUP_PATH/"
+        fi
+
+    echo "Configs backed up successfully"
     fi
     
 }
@@ -205,7 +236,7 @@ case "${1:-}" in
                     BACKUP_CONFIG=true
                     ;;
 
-               m)
+                m)
                     BACKUP_MODS=true
                     ;;
                 \?)
