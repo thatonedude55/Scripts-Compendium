@@ -5,7 +5,7 @@
 #2. Delete/disable all mods, configs in server. Sync with curseforge. 
 
 set -euo pipefail
-VERSION="0.1.0"
+VERSION="0.2.0"
 
 MC_PATH="$HOME/Minecraft/Minecraft Server 1.12.2"
 JAVA="/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"
