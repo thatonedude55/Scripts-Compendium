@@ -14,7 +14,7 @@ SERVER_JAR="forge.jar"
 MAX_RAM="9G"
 MIN_RAM="2G"
 
-CURSEFORGE_DIR="$HOME/Minecraft/Curseforge/instances"
+CURSEFORGE_DIR="$HOME/Minecraft/Curseforge/Instances"
 
 COMPRESS=true 
 #Will add compression of mc world to .tar.gz
@@ -24,6 +24,9 @@ COMPRESS=true
 BACKUP_MODS=false
 BACKUP_WORLD=false
 BACKUP_CONFIG=false
+
+IMPORT_MODS=false
+IMPORT_CONFIG=false
 
 PROFILE_SET=false
 Get_PID(){
