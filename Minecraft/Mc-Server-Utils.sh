@@ -5,7 +5,7 @@
 #2. Delete/disable all mods, configs in server. Sync with curseforge. 
 
 set -euo pipefail
-VERSION="0.2.0"
+VERSION="0.3.0"
 
 MC_PATH="$HOME/Minecraft/Minecraft Server 1.12.2"
 JAVA="/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"
@@ -13,6 +13,8 @@ BACKUP_PATH="$HOME/Minecraft/Minecraft Backup"
 SERVER_JAR="forge.jar"
 MAX_RAM="9G"
 MIN_RAM="2G"
+
+CURSEFORGE_DIR="$HOME/Minecraft/Curseforge/instances"
 
 COMPRESS=true 
 #Will add compression of mc world to .tar.gz
@@ -23,7 +25,7 @@ BACKUP_MODS=false
 BACKUP_WORLD=false
 BACKUP_CONFIG=false
 
-
+PROFILE_SET=false
 Get_PID(){
 
 PID=$(pgrep -f "java.*-jar.*$SERVER_JAR" | head -n 1 || true)
@@ -50,6 +52,14 @@ Commands:
     --backup-server [options]
         Create a backup of the Minecraft server
 
+        Default behaviour: Backs up entire server folder
+
+    --import-curseforge [options]
+        Imports mods and configs from curseforge instance to server
+
+        Default Behaviour: Imports mods and configs
+        
+
 Backup options:
 
     -n No compression
@@ -59,6 +69,15 @@ Backup options:
     -m Backup the Minecraft mods folder only
     
     -c Backup the Minecraft config folder only
+
+Import options:
+
+    -p Change curseforge profile to import
+    
+    -m Imports mods only
+    
+    -c Imports configs only
+
 
 General options:
 
@@ -74,13 +93,13 @@ Examples:
 
     mc-server-utils --restart-server
 
-    mc-server-utils --backup-server
-
     mc-server-utils --backup-server -n
 
     mc-server-utils --backup-server -w
 
     mc-server-utils --backup-server -wmc
+
+    mc-server-utils --import-curseforge -m
 
 
     
@@ -103,8 +122,10 @@ Stop_Server(){
         echo "Shutting server down"
 	    kill -INT "$PID"
         
-        sleep 5 #Change to be more intelligent
-	
+	    while kill -0 "$PID" 2>/dev/null; do
+		   echo "Waiting for server to stop"
+		   sleep 1
+	    done
         echo "Server has stopped"
     else
         echo "Server is not currently running"
@@ -137,29 +158,22 @@ Compress_Preparation(){
 
 Backup_Server(){
 
-    Compress_Preparation
+   	 Compress_Preparation
 
     
 	mkdir -p "$BACKUP_PATH"
 	echo "Backup is located at: $BACKUP_PATH"
 
-    Get_PID
-    if [[ -n "$PID" ]]; then
-        echo "Stopping server"
-	    Stop_Server
+	 Stop_Server
             
-        while kill -0 "$PID" 2>/dev/null; do
-            echo "Waiting for server to stop"
-            sleep 2
-        done
-    fi
+       
 
-    if [[ "$BACKUP_WORLD" == false &&
-        "$BACKUP_MODS" == false &&
-        "$BACKUP_CONFIG" == false ]]; then
+         if [[ "$BACKUP_WORLD" == false &&
+        	"$BACKUP_MODS" == false &&
+        	"$BACKUP_CONFIG" == false ]]; then
         
-        echo "No flags specified"
-        echo "Backing up entire server directory at: $MC_PATH"
+            echo "No flags specified"
+            echo "Backing up entire server directory at: $MC_PATH"
 
         if [[ "$COMPRESS" == true ]]; then
             tar -cJf "$BACKUP_PATH/ALL_${BACKUP_NAME}" "$MC_PATH"
@@ -207,6 +221,62 @@ Backup_Server(){
     
 }
 
+Set_Curseforge_Profile(){
+    echo "Available curseforge profiles"
+    ls "$CURSEFORGE_DIR"
+        
+        read -rp "Please select a profile: " PROFILE 
+        
+        PROFILE_PATH="$CURSEFORGE_DIR/$PROFILE"    
+        
+        if [[ ! -d "$PROFILE_PATH" ]]; then
+            echo "Profile not found"  
+                return 1
+        fi
+        
+        echo "Selected profile: $PROFILE"
+        echo "Profile path: $PROFILE_PATH"
+        PROFILE_SET=true
+    
+
+}
+
+
+Import_Curseforge(){
+    if [[ "$PROFILE_SET" == false ]]; then
+        echo "No curseforge profile detected!"
+        echo "Use ''./Mc-Server-Utils.sh --import-curseforge -p' to set a profile"
+        return 1 
+    fi
+    
+    if [[ "$IMPORT_MODS" == true ]]; then
+        echo "Importing mods"
+        rsync -avhP "$PROFILE_PATH/mods/" "$MC_PATH/mods/"
+        echo "done"
+
+    if [[ "$IMPORT_CONFIG" == true ]]; then
+        echo "Importing configs"
+        rsync -avhP "$PROFILE_PATH/config/" "$MC_PATH/config/"
+        echo "done"
+    
+    else    
+        echo "Importing mods & configs"
+        rsync -avhP "$PROFILE_PATH/mods" "$MC_PATH/mods"
+        rsync -avhP "$PROFILE_PATH/config/" "$MC_PATH/config/"
+        echo "done"
+        
+    fi
+    
+    fi
+    
+            
+         
+      
+
+      
+        
+}
+
 case "${1:-}" in
     --start-server)
         Start_Server
@@ -249,7 +319,30 @@ done
 
 Backup_Server
 ;;
-         
+
+    --import-curseforge)
+        shift
+        
+        while getopts ":pmc" option; do
+            case "$option" in
+            p)
+                Set_Curseforge_Profile
+                ;;
+            m)
+                IMPORT_MODS=true
+                ;;
+            c)
+                IMPORT_CONFIG=true
+                ;;
+            \?)
+                echo "Unknown flag: -$OPTARG"
+                echo "Use --help for more information."
+                exit 1
+                ;;  
+    esac
+done
+Import_Curseforge
+;;         
     
 
     --help|-h)
@@ -263,4 +356,3 @@ Backup_Server
         exit 1
         ;;
 esac
-
